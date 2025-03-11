@@ -1,0 +1,109 @@
+networks:
+  rabbit-net:
+  rest-api:
+  # Also rest-api, used for retrieving the data
+  retrieve-api:
+
+services:
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    networks:
+      - rabbit-net
+
+
+  api:
+    build: ./api
+    networks:
+      - rabbit-net
+      - rest-api
+      - retrieve-api
+    ports:
+      - 8080:8080
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USERNAME=user
+      - RABBITMQ_PASSWORD=password
+    depends_on:
+      - rabbitmq
+
+
+  # Sensores
+  temperature_humidity:
+    build: ./sensors/temperature_humidity
+    networks:
+      - rest-api
+    depends_on:
+      - api
+    deploy:
+      mode: replicated
+      replicas: 4
+
+  occupancy:
+    build: ./sensors/occupancy
+    networks:
+      - rest-api
+    depends_on:
+      - api
+    deploy:
+      mode: replicated
+      replicas: 6
+
+  power_consumption:
+    build: ./sensors/power_consumption
+    networks:
+      - rest-api
+    depends_on:
+      - api
+    deploy:
+      mode: replicated
+      replicas: 7
+
+  security_camera:
+    build: ./sensors/security_camera
+    networks:
+      - rest-api
+    depends_on:
+      - api
+    deploy:
+      mode: replicated
+      replicas: 3
+    
+
+  # Escritores
+  writer_temperature_humidity:
+    build: ./writers/temperature_humidity
+    networks:
+      - rabbit-net
+    depends_on:
+      - rabbitmq
+      - api
+
+  writer_occupancy:
+    build: ./writers/occupancy
+    networks:
+      - rabbit-net
+    depends_on:
+      - rabbitmq
+      - api
+
+  writer_power_consumption:
+    build: ./writers/power_consumption
+    networks:
+      - rabbit-net
+    depends_on:
+      - rabbitmq
+      - api
+
+  writer_security_camera:
+    build: ./writers/security_camera
+    networks:
+      - rabbit-net
+    depends_on:
+      - rabbitmq
+      - api
